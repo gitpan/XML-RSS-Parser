@@ -1,4 +1,4 @@
-XML::RSS::Parser is a lightweight liberal parser of RSS feeds. 
+XML::RSS::Parser is a lightweight liberal OO parser of RSS feeds. 
 
 INSTALLATION
 
@@ -15,7 +15,6 @@ This module requires these other modules and libraries: XML::Parser
 
 COPYRIGHT AND LICENCE
 
-The software is released under the Artistic License. The terms of the Artistic License are described
-at http://www.perl.com/language/misc/Artistic.html. Except where otherwise noted, XML::RSS::Parser is
-Copyright 2004, Timothy Appnel, self@timaoutloud.org. All rights reserved.
+The software is released under the Artistic License. The terms of the Artistic License are described at http://www.perl.com/language/misc/Artistic.html. Except where otherwise noted, XML::RSS::Parser is
+Copyright 2003-4, Timothy Appnel, cpan@timaoutloud.org. All rights reserved.
 

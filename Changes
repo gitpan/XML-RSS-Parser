@@ -1,5 +1,18 @@
 Revision history for Perl extension XML::RSS::Parser.
 
+2.0 Jan 16 2004
+	- Being terribly unsatisfied with where 1.0 was, performed a major
+	  overhaul of all the code and API while adding new features.
+	- XML::RSS::Parser::Element has been significantly changed. Modeled
+	  on XML::SimpleObject.
+	- XML::RSS::Parser::Feed is inherited from 
+	  XML::RSS::Parser::Element.
+	- XML::RSS::Parser::Block is gone.
+	- Now handles all RSS tags including skiphours, skipdays and
+	  textinput.
+	- Preserves xhtml/body and foaf/person blocks as a single element
+	- Many other flaws too numerous to list addressed.
+
 1.02 Jan 03 2004
 	- Fixed bug in element method of Block object where map keys 
           were created when an undefined element was called.
