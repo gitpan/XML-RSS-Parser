@@ -15,14 +15,25 @@ use XML::RSS::Parser::Block;
 use XML::RSS::Parser::Element;
 
 use vars qw($VERSION @ISA);
-$VERSION = 1.01;
+$VERSION = 1.02;
 @ISA = qw(XML::Parser);
 
-my $rss_namespaces = { };
-$rss_namespaces->{'http://my.netscape.com/rdf/simple/0.9/'}=1;
-$rss_namespaces->{'http://purl.org/rss/1.0/'}=1;
-# $rss_namespaces->{'http://purl.org/rss/2.0/'}=1;
-$rss_namespaces->{'http://backend.userland.com/rss2'}=1;
+my $rss_namespaces = {
+	'http://my.netscape.com/rdf/simple/0.9'=>1,
+	'http://purl.org/rss/1.0'=>1,
+#	'http://purl.org/rss/2.0'}=>1,
+	'http://backend.userland.com/rss2'=>1
+};
+
+my $skip = {
+	# blanks added for undefined rss namespaces.
+	textinput=> [ keys %{ $rss_namespaces }, '' ], 
+	skipdays=> [ keys %{ $rss_namespaces }, '' ],
+	skiphours=> [ keys %{ $rss_namespaces }, '' ],
+	items=> [ 'http://purl.org/rss/1.0' ],
+	body=> [ 'http://www.w3.org/1999/xhtml' ],
+	Person=> [ 'http://xmlns.com/foaf/0.1' ]
+};
 
 sub new {
     my $class = shift;
@@ -85,7 +96,8 @@ sub _hdlr_start {
 
 	# hack. skip processing if in unsupported block.
 	if ($xp->{depth} && $xp->depth > $xp->{depth}) {
-		$xp->skip_until( $xp->element_index+1 ); # skip running handlers until next tag start.
+		# skip running handlers until next tag start.
+		$xp->skip_until( $xp->element_index+1 ); 
 		return;
 	}
 
@@ -112,9 +124,10 @@ sub _hdlr_start {
 	} elsif ($el eq 'image') { 
 		$xp->{block} = XML::RSS::Parser::Block->new($el);
 		$xp->{feed}->image( $xp->{block} );
-	} elsif ($el=~m/^(textinput|skipdays|skiphours|items)$/i) { 
+	} elsif ( $skip->{$el} && grep { $_ eq $xp->namespace($el) } @{ $skip->{$el} } ) {
 		$xp->{depth} = $xp->depth;
-		$xp->skip_until( $xp->element_index+1 ); # skip running handlers until next tag start.
+		# skip running handlers until next tag start.
+		$xp->skip_until( $xp->element_index+1 ); 
 	} elsif ( my $block = $xp->{block} || $xp->{channel} ) {
 		my $type = $block->type;
 		my $nsq_el = XML::RSS::Parser->ns_qualify($el,$xp->namespace($el));
@@ -214,94 +227,84 @@ This modules requires the L<XML::Parser> package.
 
 =head1 METHODS
 
-The following methods are available:
+The following objects and methods are provided in this package.
 
-=over 4
-
-=item * new
+=head3 XML::RSS::Parser->new
 
 Constructor for XML::RSS::Parser. Returns a reference to a XML::RSS::Parser object.
 
-=item * parse(source)
+=head3 $parser->parse(source)
 
 Inherited from XML::Parser, the SOURCE parameter should either an open IO::Handle 
 or a string containing the whole XML document. A die call is thrown if a parse 
 error occurs otherwise it will return a XML::RSS::Parser::Feed object.
 
-=item * parsefile(file)
+=head3 $parser->parsefile(file)
 
 Inherited from XML::Parser, FILE is an open handle. The file is closed no matter 
 how parse returns. A die call is thrown if a parse error occurs otherwise it will
 return a XML::RSS::Parser::Feed object.
 
-=item * ns_qualify(element, namesapce_uri)
+=head3 XML::RSS::Parser->ns_qualify(element, namesapce_uri)
 
 An simple utility method implemented as an abstract method that will return a fully namespace qualified string for the supplied element. 
 
-=back
-
-=head1 XML::RSS::Parser::Feed
+=head2 Feed Object
 
 XML::RSS::Parser::Feed is a simple object that holds the results of a parsed RSS feed. 
 
-=over 4
-
-=item * new
+=head3 XML::RSS::Parser::Feed->new
 
 Constructor for XML::RSS::Parser::Feed. Returns a reference to a XML::RSS::Parser::Feed object.
 
-=item * rss_namespace_uri
+=head3 $feed->rss_namespace_uri
 
 A utility method for determining the namespace RSS elements are in if at all. This is important since
 different RSS namespaces are in use. Returns the default namespace if it is defined otherwise it hunts for it
 based on a list of common namespace URIs. Return a null string if a namespace cannot be determined or was not 
 defined at all in the feed.
 
-=item * channel([XML::RSS::Parser::Block])
+=head3 $feed->channel([XML::RSS::Parser::Block])
 
 Gets/sets a XML::RSS::Parser::Block object assumed to be of type I<channel>. 
 
-=item * items([XML::RSS::Parser::Block])
+=head3 $feed->items([XML::RSS::Parser::Block])
 
 Gets/Sets an ARRAY reference of XML::RSS::Parser::Block objects assumed to be of type I<item>. 
 
-=item * item_count
+=head3 $feed->item_count
 
 Returns an integer representing the number of items in the feed object.
 
-=item * image([XML::RSS::Parser::Block])
+=head3 $feed->image([XML::RSS::Parser::Block])
 
 Gets/Sets a XML::RSS::Parser::Block object assumed to be of type I<image>. 
 
-=item * append_item(XML::RSS::Parser::Block)
+=head3 $feed->append_item(XML::RSS::Parser::Block)
 
 Appends a XML::RSS::Parser::Block assumed to be of type I<item> to the feed's array of items.
 
-=back 
-
-=head1 XML::RSS::Parser::Block
+=head2 Block Object
 
 XML::RSS::Parser::Block is an object that holds the contents of a RSS block. Block objects can be of 
 type channel, item or image. Block objects maintain a stack and a mapping of objects to their 
 namespace qualified element names.
 
-=over 4
-
-=item * new([$type, \%attributes])
+=head3 XML::RSS::Parser::Block->new([$type, \%attributes])
 
 Constructor for XML::RSS::ParserBlock. Optionally can specify the type of the block via a SCALAR in
 addition to any attributes via a HASH reference. Returns a reference to a XML::RSS::Parser::Block 
 object.
 
-=item * append(XML::RSS::Parser::Element)
+=head3 $block->append(XML::RSS::Parser::Element)
 
 Appends a XML::RSS::Parser::Element object to the block stack and element mapping.
 
-=item * attributes([\%attributes])
+=head3 $block->attributes([\%attributes])
 
 Gets/Sets a reference to a HASH containing the attributes for the block.
 
-=item * element([$nsq_element_name])
+=head3 $block->element([$nsq_element_name])
 
 The element method is similar to CGI->param method. If the method is called with a SCALAR representing
 a namespace qualified element name it will return all of the XML::RSS::Parser::Element objects of that
@@ -310,57 +313,51 @@ will return the first XML::RSS::Parser::Element object. If the method is called 
 HASH reference. This HASH reference in a mapping of namespace qualified element names as keys and a
 reference to an ARRAY of 1 or more cooresponding Element objects.
 
-=item * stack
+=head3 $block->stack
 
 Returns an ARRAY of XML::RSS::Parser::Element objects representing the processing stack.
 
-=item * type([$type])
+=head3 $block->type([$type])
 
 Gets/Sets the type of block via a SCALAR. Assumed to be either channel, item, or image.
 
-=item * is_type($type)
+=head3 $block->is_type($type)
 
 Test whether the object is of a certain type. Returns a boolean value.
 
-=back
-
-=head1 XML::RSS::Parser::Element
+=head2 Element Object
 
 XML::RSS::Parser::Element is an object that represents one tag or tagset in an RSS block. 
 
-=over 4
-
-=item * new([$type, $name, $value, \%attributes])
+=head3 XML::RSS::Parser::Element->new([$type, $name, $value, \%attributes])
 
 Constructor for XML::RSS::ParserBlock. Optionally can specify the type of the block, namespace 
 qualified element name and value via SCALARs in addition to any attributes via a HASH reference. 
 Returns a reference to a XML::RSS::Parser::Element object.
 
-=item * attributes([\%attributes])
+=head3 $element->attributes([\%attributes])
 
 Gets/Sets a reference to a HASH containing the attributes for the block.
 
-=item * name([$nsq_element_name])
+=head3 $element->name([$nsq_element_name])
 
 Gets/Sets the namespace qualified element name via a SCALAR. 
 
-=item * type([$type])
+=head3 $element->type([$type])
 
 Gets/Sets the type of block via a SCALAR. Assumed to be either channel, item, or image.
 
-=item * is_type($type)
+=head3 $element->is_type($type)
 
 Test whether the object is of a certain type. Returns a boolean value.
 
-=item * value([$value])
+=head3 $element->value([$value])
 
 Gets/Sets the value of the element via a SCALAR.
 
-=item * append_value($value)
+=head3 $element->append_value($value)
 
 Appends the value of the passed parameter to the object current value.
-
-=back
 
 =head1 DEPENDENCIES
 
@@ -368,8 +365,13 @@ L<XML::Parser>
 
 =head1 SEE ALSO
 
-L<XML::Parser>, L<http://feeds.archive.org/validator/>, L<http://www.xml.com/pub/a/2002/12/18/dive-into-xml.html>,
-L<http://www.oreillynet.com/pub/a/webservices/2002/11/19/rssfeedquality.html>,
+L<XML::Parser> 
+
+L<http://feeds.archive.org/validator/>, 
+
+What is RSS? L<http://www.xml.com/pub/a/2002/12/18/dive-into-xml.html>
+
+Raising the Bar on RSS Feed Quality L<http://www.oreillynet.com/pub/a/webservices/2002/11/19/rssfeedquality.html>,
 
 =head1 TO DO AND ISSUES
 

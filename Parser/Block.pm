@@ -7,7 +7,7 @@ package XML::RSS::Parser::Block;
 
 use strict;
 use vars qw( $VERSION );
-$VERSION = '0.1';
+$VERSION = '0.11';
 
 sub new {
 	my $class = shift;
@@ -26,6 +26,7 @@ sub append {
 
 sub element { 
 	return $_[0]->{map} unless $_[1];
+	return unless $_[0]->{map}->{ $_[1] };
 	return wantarray ? @{ $_[0]->{map}->{ $_[1] } } : $_[0]->{map}->{ $_[1] }->[0]; 
 }
 

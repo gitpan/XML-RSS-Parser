@@ -1,5 +1,12 @@
 Revision history for Perl extension XML::RSS::Parser.
 
+1.02 Jan 03 2004
+	- Fixed bug in element method of Block object where map keys 
+          were created when an undefined element was called.
+	- Better handling of ignored elements to avoid "noise" from 
+	  being included in the result. Added xhtml:body and 
+	  foaf:Person to the list for now.
+
 1.01 Jan 01 2004
 	- Fixed botched install.
 	- Documentation fixes.
