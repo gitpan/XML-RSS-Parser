@@ -91,8 +91,8 @@ sub children {
 }
 
 sub children_names { keys %{ $_[0]->{__children} } || (); }
-sub attribute { $_[0]->{attributes}->{ $_[1] } = $_[2] if $_[2]; $_[0]->{attributes}->{ $_[1] } } 
-sub attributes { $_[0]->{attributes}=$_[1] if $_[1]; $_[0]->{attributes}; };
+sub attribute { $_[0]->{attr}->{ $_[1] } = $_[2] if $_[2]; $_[0]->{attr}->{ $_[1] } } 
+sub attributes { $_[0]->{attr}=$_[1] if $_[1]; $_[0]->{attr}; };
 
 *query = \&match;
 

@@ -1,5 +1,9 @@
 Revision history for Perl extension XML::RSS::Parser.
 
+2.14 Apr 06 2004
+    - Fix bug were XPath routines were not retrieving attributes 
+      properly.
+
 2.13 Apr 05 2004
     - Fix bug with some xpath related routines were // notation was
       generating warnings and errors.

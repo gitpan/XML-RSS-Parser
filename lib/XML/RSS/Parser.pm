@@ -13,7 +13,7 @@ use XML::Parser;
 use XML::RSS::Parser::Feed;
 
 use vars qw($VERSION @ISA);
-$VERSION = 2.13;
+$VERSION = 2.14;
 @ISA = qw( XML::Parser );
 
 my $rss_namespaces = {
