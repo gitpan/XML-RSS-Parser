@@ -1,5 +1,12 @@
 Revision history for Perl extension XML::RSS::Parser.
 
+1.01 Jan 01 2004
+	- Fixed botched install.
+	- Documentation fixes.
+
+1.0 Dec 30 2003
+	- OO Rewrite.
+
 0.21 Jun 03 2003
 	- Fixed botched CPAN upload.
 

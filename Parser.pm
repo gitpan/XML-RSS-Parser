@@ -1,5 +1,5 @@
-# Copyright (c) 2003 Timothy Appnel
-# http://tima.mplode.com/
+# Copyright (c) 2003-4 Timothy Appnel
+# http://www.timaoutloud.org/
 # This code is released under the Artistic License.
 #
 # XML::RSS:Parser - A liberal parser for RSS Feeds.
@@ -15,7 +15,7 @@ use XML::RSS::Parser::Block;
 use XML::RSS::Parser::Element;
 
 use vars qw($VERSION @ISA);
-$VERSION = 1.0;
+$VERSION = 1.01;
 @ISA = qw(XML::Parser);
 
 my $rss_namespaces = { };
@@ -159,7 +159,7 @@ XML::RSS:Parser - A liberal object-oriented parser for RSS feeds.
 
 =head1 SYNOPSIS
 
-#!/usr/bin/perl -w
+	#!/usr/bin/perl -w
 
 	use strict;
 	use XML::RSS::Parser;

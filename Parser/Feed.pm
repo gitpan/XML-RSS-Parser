@@ -1,4 +1,9 @@
-package XML::RSS::Parser::Element;
+# Copyright (c) 2003-4 Timothy Appnel
+# http://www.timaoutloud.org/
+# This code is released under the Artistic License.
+#
+
+package XML::RSS::Parser::Feed;
 
 use strict;
 use vars qw( $VERSION );
@@ -7,16 +12,15 @@ $VERSION = '0.1';
 sub new {
 	my $class = shift;
 	my $self = bless { }, $class;
-	$self->{type} = shift || undef;
-	$self->{name} = shift || undef;
-	$self->{value} = shift || ''; # avoid issues with warnings. 
-	$self->{attributes} = shift || undef;
+	$self->{channel} = undef;
+	$self->{items} = undef;
+	$self->{image} = undef;
 	return $self;
 }
 
 sub AUTOLOAD {
 	my $self = shift;
-	my @fields = qw( type name value attributes );
+	my @fields = qw( rss_namespace_uri channel items image );
 	our $AUTOLOAD;
 	return if $AUTOLOAD =~/::[A-Z]+$/;
 	if ($AUTOLOAD =~ /(.*)::(\w+)$/ and grep $2 eq $_, @fields) {
@@ -26,7 +30,7 @@ sub AUTOLOAD {
 	} else { die "method $AUTOLOAD"; }
 }
 
-sub is_type { $_[1] eq $_[0]->{type}; }
-sub append_value { $_[0]->{value}.=$_[1]; }
+sub append_item { push( @{ $_[0]->{items} }, $_[1] ); }
+sub item_count { $#{ $_[0]->{items} }+1; }
 
 1;

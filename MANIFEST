@@ -3,7 +3,8 @@ MANIFEST
 README
 Makefile.PL
 Parser.pm
-Block.pm
-Element.pm
-Feed.pm
+Parser/Block.pm
+Parser/Element.pm
+Parser/Feed.pm
 test.pl
+META.yml                                Module meta-data (added by MakeMaker)

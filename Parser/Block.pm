@@ -1,5 +1,5 @@
-# Copyright (c) 2003 Timothy Appnel
-# http://tima.mplode.com/
+# Copyright (c) 2003-4 Timothy Appnel
+# http://www.timaoutloud.org/
 # This code is released under the Artistic License.
 #
 
