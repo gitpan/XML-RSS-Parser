@@ -1,6 +1,16 @@
 Revision history for Perl extension XML::RSS::Parser.
 
-2,11 Mar 01 2994
+2.12 Mar 11 2004
+    - Attributes were not inheriting the namespace of its associated 
+      element during parsing as it should have according to the 
+      XML-Namespaces specification. Fixed.
+    - Relatedly, XPath attribute name mapping also was not handling 
+      namespaces properly. Fixed.
+    - Documentation clean-up.
+    - Added query method alias to XPath match method. query is the 
+      preferred method to use going forward.
+
+2.11 Mar 01 2004
 	- Fixed missing dependency in Makefile.PL
 
 2.1  Mar 01 2004
@@ -49,4 +59,3 @@ Revision history for Perl extension XML::RSS::Parser.
 		
 0.1  Jan 13 2003
 	- Original version. Unreleased.
-

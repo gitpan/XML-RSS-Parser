@@ -8,8 +8,7 @@ package XML::RSS::Parser::Feed;
 use strict;
 use XML::RSS::Parser::Element;
 
-use vars qw( $VERSION @ISA );
-$VERSION = '1.0';
+use vars qw( @ISA );
 @ISA = qw( XML::RSS::Parser::Element );
 
 sub new {
@@ -50,8 +49,9 @@ element of a parsed RSS feed.
 
 =head1 DESCRIPTION
 
-XML::RSS::Parser::Feed is a specialized L<XML::RSS::Parser::Element> object with a few additional 
-methods for to streamline working with a parse tree. This object is used as the root element. 
+XML::RSS::Parser::Feed is a subclass of L<XML::RSS::Parser::Element> with a few additional 
+methods to streamline working with a parse tree. This object is used as the root element 
+in the parse tree.
 
 =head1 METHODS
 
@@ -61,7 +61,7 @@ Constructor. Returns a XML::RSS::Parser::Feed object.
 
 =item $feed->rss_namespace_uri
 
-A utility method for determining the namespace RSS elements are in if at all. This is important since
+A utility method for determining the namespace the RSS elements are in if at all. This is important since
 different RSS namespaces are in use. Returns the default namespace if it is defined otherwise it hunts for it
 based on a list of common namespace URIs. Return a null string if a namespace cannot be determined or was not 
 defined at all in the feed.
@@ -100,13 +100,17 @@ Overridden method that always returns an empty string.
 
 Does nothing.
 
-=head2 ALIAS METHODS
+=item $feed->query
 
-All children names in the method descriptions are assumed to 
+=item $feed->xpath
+
+Pass through to Element methods.
+
+=head2 ALIAS METHODS
 
 =item $feed->channel
 
-Returns a reference to the channel object.
+Returns a reference to the channel element object.
 
 =item $feed->items
 
@@ -127,7 +131,7 @@ at L<http://www.perl.com/language/misc/Artistic.html>.
 
 =head1 AUTHOR & COPYRIGHT
 
-Except where otherwise noted, XML::RSS::Parser is Copyright 2003-4, Timothy Appnel, 
-cpan@timaoutloud.org. All rights reserved.
+Except where otherwise noted, XML::RSS::Parser::Feed is Copyright 2003-4, 
+Timothy Appnel, cpan@timaoutloud.org. All rights reserved.
 
 =cut

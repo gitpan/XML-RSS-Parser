@@ -2,7 +2,7 @@
 # http://www.timaoutloud.org/
 # This code is released under the Artistic License.
 #
-# XML::RSS:Parser - A liberal parser for RSS Feeds.
+# XML::RSS:Parser - A liberal parser for handling the morass of RSS formats.
 # 
 
 package XML::RSS::Parser;
@@ -13,7 +13,7 @@ use XML::Parser;
 use XML::RSS::Parser::Feed;
 
 use vars qw($VERSION @ISA);
-$VERSION = 2.11;
+$VERSION = 2.12;
 @ISA = qw( XML::Parser );
 
 my $rss_namespaces = {
@@ -115,9 +115,9 @@ sub _hdlr_start {
 	push( @{ $xp->{__stack} }, $element);
 
 	# namespace qualify any attributes and store in new element.
-	if (@attribs) { 
-		for (my $x=0; $#attribs>=$x; $x+=2) {
-			my $ns = $xp->namespace($attribs[$x]);
+	if (@attribs) { # CLEAN UP.
+		for (my $x=0; $#attribs>=$x; $x+=2) { 
+			my $ns = $xp->namespace($attribs[$x]) || $xp->namespace($el);
 			my $nsq = XML::RSS::Parser->ns_qualify( $attribs[$x], $ns );
 			$element->attribute($nsq,$attribs[$x+1]);
 		}
@@ -193,21 +193,34 @@ XML::RSS:Parser - A liberal object-oriented parser for RSS feeds.
 XML::RSS::Parser is a lightweight liberal parser of RSS feeds that is derived from the XML::Parser::LP 
 module the I developed for mt-rssfeed -- a Movable Type plugin. This parser is "liberal" in that it 
 does not demand compliance of a specific RSS version and will attempt to gracefully handle tags it 
-does not expect or understand.  The  parser's only requirements is that the file is well-formed XML 
-and remotely resembles RSS. The module is leaner then L<XML::RSS> -- the majority of code was for 
-generating RSS files. 
+does not expect or understand.  The parser's only requirements is that the file is well-formed XML 
+and remotely resembles RSS. 
+
+There are a number of advantages to using this module then just using a standard parser-tree 
+combination. There are a number of different RSS formats in use today. In very subtle ways 
+these formats are not entirely compatible from one to another. XML::RSS::Parser makes a few 
+assumptions to "normalize" the parse tree into a more consistent form. For insance, it 
+forces C<channel> and C<item> into a parent-child relationship and locates one (if any) of 
+the known RSS Namespace URIs and maps them into a common form. For more detail see 
+L<SPECIAL PROCESSING NOTES>. 
+
+This module is leaner then L<XML::RSS> -- the majority of code was for generating RSS files. 
+It also provides a XPath-esque interface to the feed's tree.
 
 Your feedback and suggestions are greatly appreciated. See the L<TO DO> section for some brief 
 thoughts on next steps.
 
-This modules requires the L<XML::Parser> package.
+This package requires L<XML::Parser> and L<Class::XPath>.
 
 =head2 SPECIAL PROCESSING NOTES
 
 There are a number of different RSS formats in use today. In very subtle ways these formats are not 
-entirely compatible from one to another. To ease working with RSS data in different formats, the 
-parser does not create the feed's parse tree verbatim. Instead it makes a few assumptions to 
-"normalize" the parse tree into a more consistent form. 
+entirely compatible from one to another. What's worse is that there are unlabeled versions within the
+standard in addition to tags with overlapping purposes and vague definitions. (See Mark Pilgrim's 
+"The myth of RSS compatibility" L<http://diveintomark.org/archives/2004/02/04/incompatible-rss> 
+for just a sampling of what I mean.) To ease working with RSS data in different formats, the parser 
+does not create the feed's parse tree verbatim. Instead it makes a few assumptions to "normalize" 
+the parse tree into a more consistent form. 
 
 =over 4
 
@@ -217,16 +230,23 @@ declaration information is still extracted.
 =item * The parser also forces C<channel> and C<item> into a parent-child relationship. In 
 versions 0.9 and 1.0, C<channel> and C<item> tags are siblings.
 
+=item * Rather then creating a text node child to each tag, the parser stores the tags contents as the
+nodes C<value> in most cases. These instances include direct descendants of C<item> and C<image> in 
+addition to direct descedents of C<channel> not mentioned. 
+
 =item * Some more advanced feeds in existence take advantage of namespace extensions that are 
-permitted by RSS 1.0 and 2.0 (not related) and embed complex blocks markup from other dialects. Two 
-somewhat common dialects found in feeds are XHTML bodies and FOAF persons. The parser preserves these 
-blocks as a single node in the tree for ease of handling. 
+permitted by RSS 1.0 and 2.0 (the versions are not related) and embed complex blocks markup from other 
+grammars. The parser preserves these blocks as a single node and stores the unparsed markup in the 
+tree for ease of handling and later parsing. Two common instances in feeds that are currently supported
+are XHTML bodies and FOAF persons. 
 
-An XHTML element can be retrieved by the  element name of http://www.w3.org/1999/xhtml/body. 
+=over 4
 
-A FOAF person can be retrieved by the element name of http://xmlns.com/foaf/0.1/person. Some feeds 
-use Person (capital P) -- the parser will preserve those blocks but you have to retrieve the node 
-with the slightly different name.
+=item An XHTML body can be retrieved by the element name of http://www.w3.org/1999/xhtml/body. 
+
+=item A FOAF person can be retrieved by the element name of http://xmlns.com/foaf/0.1/person. Some feeds 
+that were found use Person (capital P) -- the parser will preserve those blocks but you have to 
+retrieve the node with the slightly different name.
 
 =back
 
@@ -240,13 +260,13 @@ Constructor. Returns a reference to a new XML::RSS::Parser object.
 
 =item $parser->parse(source)
 
-Inherited from XML::Parser, the SOURCE parameter should either an open IO::Handle 
+Inherited from L<XML::Parser>, the SOURCE parameter should either open an IO::Handle 
 or a string containing the whole XML document. A die call is thrown if a parse 
 error occurs otherwise it will return a L<XML::RSS::Parser::Feed> object.
 
 =item $parser->parsefile(file)
 
-Inherited from XML::Parser, FILE is an open handle. The file is closed no matter 
+Inherited from L<XML::Parser>, FILE is an open handle. The file is closed no matter 
 how parse returns. A die call is thrown if a parse error occurs otherwise it will
 return a L<XML::RSS::Parser::Feed> object.
 
@@ -261,7 +281,8 @@ L<XML::Parser>
 
 =head1 SEE ALSO
 
-L<XML::RSS::Parser::Element>, L<XML::RSS::Parser::Feed>, L<XML::Parser>, L<XML::SimpleObject>
+L<XML::RSS::Parser::Element>, L<XML::RSS::Parser::Feed>, L<XML::Parser>, L<Class::XPath>, 
+L<XML::SimpleObject>
 
 The Feed Validator L<http://www.feedvalidator.org/>
 
@@ -269,17 +290,18 @@ What is RSS? L<http://www.xml.com/pub/a/2002/12/18/dive-into-xml.html>
 
 Raising the Bar on RSS Feed Quality L<http://www.oreillynet.com/pub/a/webservices/2002/11/19/rssfeedquality.html>
 
+The myth of RSS compatibility L<http://diveintomark.org/archives/2004/02/04/incompatible-rss>
+
 =head1 TO DO
 
 =over 4
 
 =item * Abstraction layer for handling overlapping elements found throughout the various RSS formats.
 
-=item * Implement simple XPath matching capabilities to the package.
+=item * Add whitespace filtering.
 
-=item * Parser collects a lot of unnecessary whitespace. Keep or filter? Filter what?
-
-=item * Add method for adding more blocks to preserve.
+=item * Add methods for adding more namespaces/blocks to pass-thru or to pass to pluggable 
+handler routine.
 
 =back
 
