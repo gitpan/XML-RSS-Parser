@@ -4,5 +4,5 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     'NAME'		=> 'XML::RSS::Parser',
     'VERSION_FROM'	=> 'lib/XML/RSS/Parser.pm', # finds $VERSION
-    'PREREQ_PM'		=> { XML::Parser }, # e.g., Module::Name => 1.1
+    'PREREQ_PM'		=> { XML::Parser=>0, Class::XPath=>1.4 }, # e.g., Module::Name => 1.1
 );
