@@ -1,5 +1,9 @@
 Revision history for Perl extension XML::RSS::Parser.
 
+2.15 May 03 2004
+    - Fix error where zero items causes crash. (Greg Saylor)
+    - Added xhtml/div to pass-thrus.
+
 2.14 Apr 06 2004
     - Fix bug were XPath routines were not retrieving attributes 
       properly.

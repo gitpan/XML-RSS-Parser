@@ -13,7 +13,7 @@ use XML::Parser;
 use XML::RSS::Parser::Feed;
 
 use vars qw($VERSION @ISA);
-$VERSION = 2.14;
+$VERSION = 2.15;
 @ISA = qw( XML::Parser );
 
 my $rss_namespaces = {
@@ -25,6 +25,7 @@ my $rss_namespaces = {
 
 my $pass_thru = {
 	body=> [ 'http://www.w3.org/1999/xhtml' ],
+    div=> [ 'http://www.w3.org/1999/xhtml' ],
 	Person=> [ 'http://xmlns.com/foaf/0.1/' ], # I love RDF.
 	person=> [ 'http://xmlns.com/foaf/0.1/' ]
 };

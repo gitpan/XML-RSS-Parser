@@ -81,9 +81,11 @@ sub child {
 sub children { 
 	my($self,$tag) = @_;
 	if ($tag) {
-		return wantarray ?
-			@{ $self->{__children}->{$tag} } :
-				$self->{__children}->{$tag}->[0];
+	    return $self->{__children}->{$tag} ?
+            wantarray ?
+                @{ $self->{__children}->{$tag} } :
+                    $self->{__children}->{$tag}->[0] :
+                        undef ;
 	} else {
 		return $self->{child_stack} ? 
 			@{ $self->{child_stack} } : ();
