@@ -7,7 +7,7 @@ package XML::RSS::Parser::Element;
 
 use strict;
 use vars qw( $VERSION );
-$VERSION = '1.0';
+$VERSION = '1.01';
 
 sub new {
 	my $class = shift;
@@ -72,7 +72,7 @@ for more.
 
 =item $element->root( [$feed] )
 
-Returns a reference to the root element (typically a L<XML::RSS::Parser::Feed). If an optional SCALAR 
+Returns a reference to the root element (typically a L<XML::RSS::Parser::Feed>. If an optional SCALAR 
 parameter is passed in the root element is set. Is undefined if not set.
 
 =item $element->parent( [$element] )

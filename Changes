@@ -1,5 +1,10 @@
 Revision history for Perl extension XML::RSS::Parser.
 
+2.01 Jan 20 2004
+	- Fixed installation problem with the policy of the newest 
+	  ExtUtils::MakeMaker. (Mike Castle)
+	- Fixed POD error. (Mike Castle)
+
 2.0 Jan 16 2004
 	- Being terribly unsatisfied with where 1.0 was, performed a major
 	  overhaul of all the code and API while adding new features.

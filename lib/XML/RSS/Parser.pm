@@ -13,7 +13,7 @@ use XML::Parser;
 use XML::RSS::Parser::Feed;
 
 use vars qw($VERSION @ISA);
-$VERSION = 2.0;
+$VERSION = 2.01;
 @ISA = qw( XML::Parser );
 
 my $rss_namespaces = {
@@ -150,7 +150,8 @@ sub _hdlr_end {
 	if ( $xp->{__stack}->[-1] && $xp->{__stack}->[-1]->name eq $nsq ) { 
 				pop( @{ $xp->{__stack} } )
 					unless ( $el eq 'channel' && 
-						 $xp->namespace($el) eq $xp->{__feed}->rss_namespace_uri);
+						( ! $xp->{__feed}->rss_namespace_uri ||
+						 	$xp->namespace($el) eq $xp->{__feed}->rss_namespace_uri ) );
 				# to "normalize" the tree between formats we don't take the channel off
 				# the stack once on. In RSS 0.9 and 1.0 item is not a child of channel.
 				$xp->{__preserve} = 0;

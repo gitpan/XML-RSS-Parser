@@ -2,8 +2,8 @@ Changes
 MANIFEST
 README
 Makefile.PL
-XML/RSS/Parser.pm
-XML/RSS/Parser/Element.pm
-XML/RSS/Parser/Feed.pm
+lib/XML/RSS/Parser.pm
+lib/XML/RSS/Parser/Element.pm
+lib/XML/RSS/Parser/Feed.pm
 test.pl
 META.yml                                Module meta-data (added by MakeMaker)

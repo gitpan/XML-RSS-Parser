@@ -1,7 +1,7 @@
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         XML-RSS-Parser
-version:      2
-version_from: XML/RSS/Parser.pm
+version:      2.01
+version_from: lib/XML/RSS/Parser.pm
 installdirs:  site
 requires:
     XML::Parser:                   
