@@ -1,5 +1,11 @@
 Revision history for Perl extension XML::RSS::Parser.
 
+2.13 Apr 05 2004
+    - Fix bug with some xpath related routines were // notation was
+      generating warnings and errors.
+    - Added the xml prefix and URI to the XPath namespace registry.
+    - Documentation fixes.
+
 2.12 Mar 11 2004
     - Attributes were not inheriting the namespace of its associated 
       element during parsing as it should have according to the 
