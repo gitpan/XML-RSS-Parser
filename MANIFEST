@@ -3,4 +3,7 @@ MANIFEST
 README
 Makefile.PL
 Parser.pm
+Block.pm
+Element.pm
+Feed.pm
 test.pl

@@ -18,7 +18,7 @@ This module requires these other modules and libraries: XML::Parser
 
 COPYRIGHT AND LICENCE
 
-The software is released under the Artistic License. The terms of the Artistic License are described 
-at http://www.perl.com/language/misc/Artistic.html. Except where otherwise noted, XML::Parser is 
-Copyright 2003, Timothy Appnel, tima@mplode.com. All rights reserved.
+The software is released under the Artistic License. The terms of the Artistic License are described
+at http://www.perl.com/language/misc/Artistic.html. Except where otherwise noted, XML::RSS::Parser is
+Copyright 2003, Timothy Appnel, self@timaoutloud.org. All rights reserved.
 
