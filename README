@@ -11,7 +11,9 @@ To install this module type the following:
 
 DEPENDENCIES
 
-This module requires these other modules and libraries: XML::Parser
+This module requires these other modules and libraries: 
+	XML::Parser 
+	Class::XPath
 
 COPYRIGHT AND LICENCE
 

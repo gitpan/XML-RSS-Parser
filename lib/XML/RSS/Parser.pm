@@ -13,7 +13,7 @@ use XML::Parser;
 use XML::RSS::Parser::Feed;
 
 use vars qw($VERSION @ISA);
-$VERSION = 2.01;
+$VERSION = 2.1;
 @ISA = qw( XML::Parser );
 
 my $rss_namespaces = {
@@ -261,7 +261,7 @@ L<XML::Parser>
 
 =head1 SEE ALSO
 
-L<XML::RSS:Parser::Element>, L<XML::RSS::Parser::Feed>, L<XML::Parser>, L<XML::SimpleObject>
+L<XML::RSS::Parser::Element>, L<XML::RSS::Parser::Feed>, L<XML::Parser>, L<XML::SimpleObject>
 
 The Feed Validator L<http://www.feedvalidator.org/>
 

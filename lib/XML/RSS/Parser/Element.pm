@@ -7,13 +7,58 @@ package XML::RSS::Parser::Element;
 
 use strict;
 use vars qw( $VERSION );
-$VERSION = '1.01';
+$VERSION = '2.01';
+
+use Class::XPath 1.4
+     get_name => '_xpath_name',
+     get_parent => 'parent',
+     get_root   => 'root',
+     get_children => 'children',
+     get_attr_names => '_xpath_attribute_names',
+     get_attr_value => '_xpath_attribute',
+     get_content    => 'value'
+;
+
+my %xpath_prefix = (
+	admin=>"http://webns.net/mvcb/",
+	ag=>"http://purl.org/rss/1.0/modules/aggregation/",
+	annotate=>"http://purl.org/rss/1.0/modules/annotate/",
+	audio=>"http://media.tangent.org/rss/1.0/",
+	cc=>"http://web.resource.org/cc/",
+	company=>"http://purl.org/rss/1.0/modules/company",
+	content=>"http://purl.org/rss/1.0/modules/content/",
+	cp=>"http://my.theinfo.org/changed/1.0/rss/",
+	dc=>"http://purl.org/dc/elements/1.1/",
+	dcterms=>"http://purl.org/dc/terms/",
+	email=>"http://purl.org/rss/1.0/modules/email/",
+	ev=>"http://purl.org/rss/1.0/modules/event/",
+	foaf=>"http://xmlns.com/foaf/0.1/",
+	image=>"http://purl.org/rss/1.0/modules/image/",
+	l=>"http://purl.org/rss/1.0/modules/link/",
+	rdf=>"http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+	rdfs=>"http://www.w3.org/2000/01/rdf-schema#",
+	'ref'=>"http://purl.org/rss/1.0/modules/reference/",
+	reqv=>"http://purl.org/rss/1.0/modules/richequiv/",
+	rss091=>"http://purl.org/rss/1.0/modules/rss091#",
+	search=>"http://purl.org/rss/1.0/modules/search/",
+	slash=>"http://purl.org/rss/1.0/modules/slash/",
+	ss=>"http://purl.org/rss/1.0/modules/servicestatus/",
+	str=>"http://hacks.benhammersley.com/rss/streaming/",
+	'sub'=>"http://purl.org/rss/1.0/modules/subscription/",
+	sy=>"http://purl.org/rss/1.0/modules/syndication/",
+	taxo=>"http://purl.org/rss/1.0/modules/taxonomy/",
+	thr=>"http://purl.org/rss/1.0/modules/threading/",
+	trackback=>"http://madskills.com/public/xml/rss/module/trackback/",
+	wiki=>"http://purl.org/rss/1.0/modules/wiki/",
+	xhtml=>"http://www.w3.org/1999/xhtml/"
+);
+my %xpath_ns = reverse %xpath_prefix;
 
 sub new {
 	my $class = shift;
 	my $in = shift;
 	my $self = bless { }, $class;
-	$self->{value} = ''; # avoid issues with warnings. 
+	$self->{value} = '';
 	map { $self->{ $_ } = $in->{ $_ } } keys %{ $in } if $in;
 	return $self;
 }
@@ -40,14 +85,40 @@ sub children {
 				$self->{__children}->{$tag}->[0];
 	} else {
 		return $self->{child_stack} ? 
-					@{ $self->{child_stack} } :
-						undef;
+			@{ $self->{child_stack} } :
+				undef;
 	}
 }
 
 sub children_names { keys %{ $_[0]->{__children} }; }
 sub attribute { $_[0]->{attributes}->{ $_[1] } = $_[2]; $_[0]->{attributes}->{ $_[1] } } 
-sub attributes { $_[0]->{__attribute}=$_[1] if $_[1]; $_[0]->{attributes}; };
+sub attributes { $_[0]->{attributes}=$_[1] if $_[1]; $_[0]->{attributes}; };
+
+sub _xpath_name {
+	my $name = $_[1] || $_[0]->{name}; # for reuse.
+	my $ns;
+	($ns,$name) = $name =~m!^(.*?)([^/#]+)$!;
+	my $prefix =  $xpath_prefix{$ns} || '';
+	$prefix ? "$prefix:$name" : $name;
+ }
+ 
+sub _xpath_attribute_names { 
+	my $self = shift;
+	return unless $self->{attributes};
+ 	map { $self->_xpath_name($_) } keys %{ $self->{attributes} };
+}
+
+sub _xpath_attribute {
+	my $self = shift;
+	my $name = shift;
+	if ( $name=~/(\w+):(\w+)/ ) {
+		$name = $1;
+		my $ns = $xpath_ns{ $2 };
+		$ns .= '/' unless ($ns=~m![/#]$!);
+		$name = "$ns$name";
+	}
+	$self->attribute($name);
+}
 
 1;
 
@@ -124,9 +195,17 @@ no elements exist as a child of the object, and undefined value is returned.
 
 Returns an array contain the names of the objects children.
 
+=item $element->match($xpath)
+
+Finds matching nodes using an XPath-esque query from anywhere in the tree. See the L<Class::XPath> documentation for more information.
+
+=item $element->xpath
+
+Returns an unique XPath string to the current node which can be used as an identifier.
+
 =head1 SEE ALSO
 
-L<XML::RSS::Parser>, L<XML::SimpleObject>
+L<XML::RSS::Parser>, L<XML::SimpleObject>, L<Class::XPath>
 
 =head1 LICENSE
 

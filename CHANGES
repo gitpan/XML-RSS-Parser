@@ -1,5 +1,8 @@
 Revision history for Perl extension XML::RSS::Parser.
 
+2.1  Mar 01 2004
+	- Added XPath capabilities to XML::RSS::Parser::Element.
+
 2.01 Jan 20 2004
 	- Fixed installation problem with the policy of the newest 
 	  ExtUtils::MakeMaker. (Mike Castle)
