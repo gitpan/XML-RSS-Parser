@@ -1,5 +1,8 @@
 Revision history for Perl extension XML::RSS::Parser.
 
+0.21 Jun 03 2003
+	- Fixed botched CPAN upload.
+
 0.2  Jun 02 2003
 	- Initial release into CPAN.
 	- Fixed several "incorrect presumptions."
@@ -7,5 +10,5 @@ Revision history for Perl extension XML::RSS::Parser.
 	- Added accessor methods.
 		
 0.1  Jan 13 2003
-	- Original version. Personal use only.
+	- Original version. Unreleased.
 

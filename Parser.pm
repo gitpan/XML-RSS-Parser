@@ -11,7 +11,7 @@ use strict;
 use XML::Parser;
 use vars qw($VERSION @ISA);
 
-my $VERSION = '0.2';
+$VERSION = 0.21;
 @ISA = qw(XML::Parser);
 
 sub new {
