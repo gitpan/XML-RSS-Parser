@@ -1,130 +1,108 @@
-# Copyright (c) 2003-2004 Timothy Appnel
-# http://www.timaoutloud.org/
-# This code is released under the Artistic License.
-#
-
 package XML::RSS::Parser::Element;
 
 use strict;
-use vars qw( $VERSION );
+use base qw(XML::Elemental::Element);
+
+use XML::Elemental::Util qw(process_name);
+use XML::RSS::Parser::Util;
 
 use Class::XPath 1.4
-     get_name => '_xpath_name',
-     get_parent => 'parent',
-     get_root   => 'root',
-     get_children => 'children',
-     get_attr_names => '_xpath_attribute_names',
-     get_attr_value => '_xpath_attribute',
-     get_content    => 'value'
-;
-
-my %xpath_prefix = (
-	admin=>"http://webns.net/mvcb/",
-	ag=>"http://purl.org/rss/1.0/modules/aggregation/",
-	annotate=>"http://purl.org/rss/1.0/modules/annotate/",
-	audio=>"http://media.tangent.org/rss/1.0/",
-	cc=>"http://web.resource.org/cc/",
-	company=>"http://purl.org/rss/1.0/modules/company",
-	content=>"http://purl.org/rss/1.0/modules/content/",
-	cp=>"http://my.theinfo.org/changed/1.0/rss/",
-	dc=>"http://purl.org/dc/elements/1.1/",
-	dcterms=>"http://purl.org/dc/terms/",
-	email=>"http://purl.org/rss/1.0/modules/email/",
-	ev=>"http://purl.org/rss/1.0/modules/event/",
-	foaf=>"http://xmlns.com/foaf/0.1/",
-	image=>"http://purl.org/rss/1.0/modules/image/",
-	l=>"http://purl.org/rss/1.0/modules/link/",
-	rdf=>"http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-	rdfs=>"http://www.w3.org/2000/01/rdf-schema#",
-	'ref'=>"http://purl.org/rss/1.0/modules/reference/",
-	reqv=>"http://purl.org/rss/1.0/modules/richequiv/",
-	rss091=>"http://purl.org/rss/1.0/modules/rss091#",
-	search=>"http://purl.org/rss/1.0/modules/search/",
-	slash=>"http://purl.org/rss/1.0/modules/slash/",
-	ss=>"http://purl.org/rss/1.0/modules/servicestatus/",
-	str=>"http://hacks.benhammersley.com/rss/streaming/",
-	'sub'=>"http://purl.org/rss/1.0/modules/subscription/",
-	sy=>"http://purl.org/rss/1.0/modules/syndication/",
-	taxo=>"http://purl.org/rss/1.0/modules/taxonomy/",
-	thr=>"http://purl.org/rss/1.0/modules/threading/",
-	trackback=>"http://madskills.com/public/xml/rss/module/trackback/",
-	wiki=>"http://purl.org/rss/1.0/modules/wiki/",
-	xhtml=>"http://www.w3.org/1999/xhtml/",
-    xml=>"http://www.w3.org/XML/1998/namespace/"
-);
-my %xpath_ns = reverse %xpath_prefix;
+  get_name       => 'qname',
+  get_parent     => 'parent',
+  get_root       => 'root',
+  get_children   => sub { $_[0]->contents ? @{$_[0]->contents} : () },
+  get_attr_names => 'attribute_qnames',
+  get_attr_value => 'attribute_by_qname',
+  get_content    => 'text_content';
 
 sub new {
-	my $class = shift;
-	my $in = shift;
-	my $self = bless { }, $class;
-	$self->{value} = '';
-	map { $self->{ $_ } = $in->{ $_ } } keys %{ $in } if $in;
-	return $self;
+    my $self = shift->SUPER::new(@_);
+    my $a = shift || {};
+    map { $self->{$_} = $a->{$_} }
+      grep { defined $a->{$_} } qw( name attributes root parent );
+    $self;
 }
 
-# fix: use non-recursive means.
-sub root { $_[0]->parent ? $_[0]->parent->root : $_[0] ; }
-sub parent { $_[0]->{parent} = $_[1] if $_[1]; $_[0]->{parent}; }
-sub name { $_[0]->{name} = $_[1] if $_[1]; $_[0]->{name}; }
-sub value { $_[0]->{value} = $_[1] if $_[1]; $_[0]->{value}; }
-sub append_value { $_[0]->{value}.=$_[1]; }
+sub as_xml { XML::RSS::Parser::Util::as_xml($_[0]); }
 
-sub child { 
-	my($self,$tag) = @_;
-	my $el = XML::RSS::Parser::Element->new( { parent=>$self, name=>$tag } );
-	push( @{ $self->{child_stack} }, $el );
-	push( @{ $self->{__children}->{$tag} }, $el );
-	$el;
+#--- xpath methods
+
+sub query {
+    my @nodes = $_[0]->match($_[1]);
+    wantarray ? @nodes : $nodes[0];
 }
 
-sub children { 
-	my($self,$tag) = @_;
-	if ($tag) {
-	    return $self->{__children}->{$tag} ?
-            wantarray ?
-                @{ $self->{__children}->{$tag} } :
-                    $self->{__children}->{$tag}->[0] :
-                        undef ;
-	} else {
-		return $self->{child_stack} ? 
-			@{ $self->{child_stack} } : ();
-	}
+sub qname {
+    my $in = $_[1] || $_[0]->name;
+    my ($local, $ns) = process_name($in);
+    return $local if ($_[0]->root->rss_namespace_uri eq $ns);
+    my $prefix = XML::RSS::Parser->prefix($ns);
+    unless ($prefix) {    # make a generic prefix for unknown namespace URI.
+        my $i = 1;
+        while (XML::RSS::Parser->namespace("NS$i")) { $i++ }
+        XML::RSS::Parser->register_ns_prefix("NS$i", $ns);
+        $prefix                                 = "NS$i";
+    }
+    "$prefix:$local";
 }
 
-sub children_names { keys %{ $_[0]->{__children} } || (); }
-sub attribute { $_[0]->{attr}->{ $_[1] } = $_[2] if $_[2]; $_[0]->{attr}->{ $_[1] } } 
-sub attributes { $_[0]->{attr}=$_[1] if $_[1]; $_[0]->{attr}; };
-
-*query = \&match;
-
-sub _xpath_name {
-    my $in = ref($_[0]) ? $_[0]->{name} : $_[0] ;
-    my($ns,$name) = $in =~m!^(.*?)([^/#]+)$!;
-    my $prefix =  $xpath_ns{$ns} || '';
-    # doubtful that this is how an undefined xpath namespace 
-    # should be handled.
-    $prefix && $prefix ne '#default' ? "$prefix:$name" : $name;
+sub attribute_qnames {
+    return () unless my $attr = $_[0]->attributes;
+    my ($foo, $ns) = process_name($_[0]->name);
+    my @names;
+    foreach (keys %$attr) {
+        my ($local, $nsa) = process_name($_);
+        $nsa ||= $ns;
+        push @names, $_[0]->qname("{$nsa}$local");
+    }
+    @names;
 }
 
-sub _xpath_attribute_names { 
-	return () unless $_[0]->{attr};
-    map { _xpath_name($_) } keys %{ $_[0]->{attr} };
+my $NAME = qr/[[:alpha:]_][\w\-\.]*/;
+
+sub attribute_by_qname {
+    my $self = shift;
+    my $name = shift;
+    my $ns   = '';
+    if ($name =~ /($NAME):($NAME)/) {
+        $name = $2;
+        $ns = XML::RSS::Parser->namespace($1) || '#UNKNOWN';
+    } else {
+        $ns = XML::RSS::Parser->namespace('#DEFAULT') || '';
+    }
+    my ($local, $ns_parent) = process_name($self->name);
+    $ns = '' if $ns_parent eq $ns;
+    $self->attributes->{"{$ns}$name"};
 }
 
-sub _xpath_attribute {
-	my $self = shift;
-	my $name = shift;
-	my $ns = '';
-	if ( $name=~/(\w+):(\w+)/ ) {
-		$name = $2;
-		$ns = $xpath_prefix{$1};
-		$ns .=  '/' unless $ns=~m![/#]$!;
-	} else {
-	    ($ns = $self->name)=~ s/\w+$//;
-	}
-	$self->{attr}->{"$ns$name"};
+#--- XML::RSS::Parser::Element 2x API methods. Now deprecated.
+
+sub child {
+    my ($self, $tag) = @_;
+    my $class = ref($self);
+    my $e = $class->new({parent => $self, name => $tag});
+    push(@{$self->contents}, $e);
+    $e;
 }
+
+sub children {
+    my ($self, $name) = @_;
+    return $self->contents unless defined($name);
+    my @c = grep { $_->can('name') && $_->name eq $name } @{$self->contents};
+    wantarray ? @c : $c[0];
+}
+
+sub attribute {
+    $_[0]->attributes->{$_[1]} = $_[2] if $_[2];
+    $_[0]->attributes->{$_[1]};
+}
+
+sub children_names {
+    my $class = ref($_[0]);
+    map { $_->name } grep { ref($_) eq $class } @{$_[0]->contents};
+}
+
+# previously deprecated methods value and append_value have been removed.
 
 1;
 
@@ -134,118 +112,181 @@ __END__
 
 =head1 NAME
 
-XML::RSS::Parser::Element -- a simple object that holds one node in
-the XML::RSS::Parser parse tree.
-
-=head1 DESCRIPTION
-
-XML::RSS::Parser::Element is a simple object that holds one node in
-the parse tree. Roughly based on L<XML::SimpleObject>.
+XML::RSS::Parser::Element -- a node in the XML::RSS::Parser
+parse tree.
 
 =head1 METHODS
 
+=over
+
 =item XML::RSS::Parser::Element->new( [\%init] )
 
-Constructor for XML::RSS::Parser::Element. Optionally the name,
-value, attributes, root, and parent can be set with a HASH
-reference using keys of the same name. See their associated
-functions below for more.
+Constructor for XML::RSS::Parser::Element. Optionally the
+name, value, attributes, root, and parent can be set with a
+HASH reference using keys of the same name. See their
+associated functions below for more.
 
-=item $element->root( [$feed] )
+=item $element->root
 
-Returns a reference to the root element of the parse tree. A
-L<XML::RSS::Parser::Feed> can be passed to optionally set the root
-element. The default is undefined.
+Returns a reference to the root element of class
+L<XML::RSS::Parser::Feed> from the parse tree.
 
 =item $element->parent( [$element] )
 
 Returns a reference to the parent element. A
-L<XML::RSS::Parser::Element> object or one of its subclasses can be
-passed to optionally set the parent. The default is undefined.
+L<XML::RSS::Parser::Element> object or one of its subclasses
+can be passed to optionally set the parent.
 
 =item $element->name( [$extended_name] )
 
-Returns the name of the element as a SCALAR. This should by the
-fully namespace qualified (extended)  name of the element and not
-the QName or local part. The default is undefined.
+Returns the name of the element as a SCALAR. This should by
+the fully namespace qualified (extended)  name of the
+element and not the QName or local part.
 
-=item $element->value( [$value] )
+=item $element->attributes( [\%attributes] )
 
-Returns a reference to the value (text contents) of the element. If
-an optional SCALAR parameter is passed in the value (text contents)
-is set. Returns a null string if not set.
+Returns a HASH reference contain attributes and their values
+as key value pairs. An optional parameter of a HASH
+reference can be passed in to set multiple attributes.
+Returns C<undef> if no attributes exist. B<NOTE:> When
+setting attributes with this method, all existing attributes
+are overwritten irregardless of whether they are present in
+the hash being passed in.
 
-=item $element->append_value( $value )
+=item $element->contents([\@children])
 
-Appends the value of the SCALAR parameter to the object's current
-value. A convenience method that is particularly helpful when
-working in L<XML::Parser> handlers.
+Returns an ordered ARRAY reference of direct sibling
+objects. Returns a reference to an empty array if the
+element does not have any siblings. If a parameter is passed
+all the direct siblings are (re)set.
+
+=item $element->text_content
+
+A method that returns the character data of all siblings.
+
+=item $element->as_xml
+
+Pass-thru to the C<as_xml> in L<XML::RSS::Parser::Util>
+using the object as the node parameter.
+
+=back
+
+=head2 XPath-esque Methods
+
+=over
+
+=item $element->query($xpath)
+
+Finds matching nodes using an XPath-esque query from
+anywhere in the tree. Like the C<param> method found in
+L<CGI>, calling C<query> in a SCALAR context will return
+only the first matching node. In an ARRAY context all
+matching elements are returned.
+
+=item $element->match($xpath)
+
+C<match> is inherited from L<Class::XPath> and always
+returns an array regardless of context. While C<query> is
+generally preferred, using match in a scalar context is a
+good quick way of getting a count of matching nodes. See the
+L<Class::XPath> documentation for more information.
+
+=item $element->xpath
+
+Returns a unique XPath string to the current node which can
+be used as an identifier.
+
+=back
+
+These methods were implemented for internal use with
+L<Class::XPath> and have now been exposed for general use.
+
+=over
+
+=item $elemenet->qname
+
+Returns the QName of the element based on the internal
+namespace prefix mapping.
+
+=item $element->attribute_qnames
+
+Returns an array of attribute names in namespace qualified
+(QName) form based on the internal prefix mapping.
+
+=item $element->attribute_by_qname($qname)
+
+Returns an array of attribute names in namespace qualified
+(QName) form.
+
+=back
+
+=head2 2x API Methods
+
+These were easily re-implemented though implementing them
+with only the methods provided by L<XML::Elemental> are
+trivial. They are still available for backwards
+compatability reasons.
+
+B<These methods are now considered deprecated.>
+
+=over
 
 =item $element->attribute($name [, $value] )
 
 Returns the value of an attribute specified by C<$name> as a
-SCALAR. If an optional second text parameter C<$value> is passed in
-the attribute is set. Returns C<undef> if the attribute does not
-exist.
+SCALAR. If an optional second text parameter C<$value> is
+passed in the attribute is set. Returns C<undef> if the
+attribute does not exist.
 
-=item $element->attributes( [\%attributes] )
+Using the C<attributes> method you could replicate this
+method like so:
 
-Returns a HASH reference contain attributes and their values as key
-value pairs. An optional parameter of a HASH reference can be
-passed in to set multiple attributes. Returns C<undef> if no
-attributes exist. NOTE: When setting attributes with this method,
-all existing attributes are overwritten irregardless of whether
-they are present in the hash being passed in.
-
+ $element->attributes->{$name};          #get
+ $element->attributes->{$name} = $value; #set
+ 
 =item $element->child( [$extended_name] )
 
-Constructs and returns a new element object making the current
-object as its parent. An optional parameter representing the name
-of the new element object can be passed. This should be the fully
-namespace qualified (extended) name and not the QName or local
-part. Returns C<undef> if the child is not present.
+Constructs and returns a new element object making the
+current object as its parent. An optional parameter
+representing the name of the new element object can be
+passed. This should be the fully namespace qualified
+(extended) name and not the QName or local part.
 
 =item $element->children( [$extended_name] )
 
-Returns any array of child elements to the object. An optional
-parameter can be passed in to return element(s) with a specific
-name. If called in a SCALAR context it will return only the first
-element with this name. If called in an ARRAY context the function
-returns all elements with this name. If no elements exist as a
-child of the object, and undefined value is returned.
+Returns any array of child elements to the object. An
+optional parameter can be passed in to return element(s)
+with a specific name. If called in a SCALAR context it will
+return only the first element with this name. If called in
+an ARRAY context the function returns all elements with this
+name. If no elements exist as a child of the object, and
+undefined value is returned.
+
+B<NOTE:> In keeping with the original behaviour of the 2x
+API, this method only returns L<XML::RSS::Parser::Element>s.
+L<XML::RSS::Parser::Characters> are stripped out. Use the
+C<contents> method for the full list of child objects.
 
 =item $element->children_names
 
-Returns an array containing the names of the objects children.
-Empty if no children are present.
+Returns an array containing the names of the objects
+children. Empty if no children are present.
 
-=head2 XPath-esque Methods
+B<NOTE:> In keeping with the original behaviour of the 2x
+API, this method only returns the names of
+L<XML::RSS::Parser::Element>s.
+L<XML::RSS::Parser::Characters> are not present.
 
-=item $element->query($xpath)
-
-Finds matching nodes using an XPath-esque query from anywhere in
-the tree. See the L<Class::XPath> documentation for more
-information.
-
-=item $element->match($xpath)
-
-Alias for the C<query> method. For compatability. C<query> is
-preferred.
-
-=item $element->xpath
-
-Returns a unique XPath string to the current node which can be used
-as an identifier.
-
-=head1 SEE ALSO
-
-L<XML::RSS::Parser>, L<XML::SimpleObject>, L<Class::XPath>
+=back
 
 =head1 AUTHOR & COPYRIGHT
 
-Please see the XML::RSS::Parser manpage for author, copyright, and
-license information.
+Please see the XML::RSS::Parser manpage for author,
+copyright, and license information.
 
 =cut
 
 =end
+
+
+

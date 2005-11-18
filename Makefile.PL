@@ -3,6 +3,6 @@ use ExtUtils::MakeMaker;
 # the contents of the Makefile that is written.
 WriteMakefile(
     'NAME'		=> 'XML::RSS::Parser',
-    'VERSION_FROM'	=> 'lib/XML/RSS/Parser.pm', # finds $VERSION
-    'PREREQ_PM'		=> { XML::Parser=>0, Class::XPath=>1.4 }, # e.g., Module::Name => 1.1
+    'VERSION_FROM'	=> 'lib/XML/RSS/Parser.pm',
+    'PREREQ_PM'		=> { XML::Elemental=>'2.0', Class::XPath=>1.4, Class::ErrorHandler=>0, Test::More=>0 }
 );

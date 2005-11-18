@@ -1,166 +1,124 @@
-# Copyright (c) 2003-2004 Timothy Appnel
-# http://www.timaoutloud.org/
-# This code is released under the Artistic License.
-#
-# XML::RSS::Parser - A liberal parser for handling the morass of RSS formats.
-# 
-
 package XML::RSS::Parser;
-
 use strict;
 
-use XML::Parser;
-use XML::RSS::Parser::Feed;
+use XML::Elemental;
+use base qw( Class::ErrorHandler );
 
-use vars qw($VERSION @ISA);
-$VERSION = 2.15;
-@ISA = qw( XML::Parser );
+use vars qw( $VERSION );
+$VERSION = 4.0;
 
-my $rss_namespaces = {
-	'http://my.netscape.com/rdf/simple/0.9'=>1,
-	'http://purl.org/rss/1.0'=>1,
-#	'http://purl.org/rss/2.0'}=>1,
-	'http://backend.userland.com/rss2'=>1
-};
+my %xpath_prefix = (
+    admin      => "http://webns.net/mvcb/",
+    ag         => "http://purl.org/rss/1.0/modules/aggregation/",
+    annotate   => "http://purl.org/rss/1.0/modules/annotate/",
+    atom       => "http://www.w3.org/2005/Atom",
+    audio      => "http://media.tangent.org/rss/1.0/",
+    cc         => "http://web.resource.org/cc/",
+    company    => "http://purl.org/rss/1.0/modules/company",
+    content    => "http://purl.org/rss/1.0/modules/content/",
+    cp         => "http://my.theinfo.org/changed/1.0/rss/",
+    dc         => "http://purl.org/dc/elements/1.1/",
+    dcterms    => "http://purl.org/dc/terms/",
+    email      => "http://purl.org/rss/1.0/modules/email/",
+    ev         => "http://purl.org/rss/1.0/modules/event/",
+    feedburner => "http://rssnamespace.org/feedburner/ext/1.0",
+    foaf       => "http://xmlns.com/foaf/0.1/",
+    image      => "http://purl.org/rss/1.0/modules/image/",
+    itunes     => "http://www.itunes.com/DTDs/Podcast-1.0.dtd",
+    l          => "http://purl.org/rss/1.0/modules/link/",
+    openSearch => "http://a9.com/-/spec/opensearchrss/1.0/",
+    rdf        => "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+    rdfs       => "http://www.w3.org/2000/01/rdf-schema#",
+    'ref'      => "http://purl.org/rss/1.0/modules/reference/",
+    reqv       => "http://purl.org/rss/1.0/modules/richequiv/",
+    rss091     => "http://purl.org/rss/1.0/modules/rss091#",
+    search     => "http://purl.org/rss/1.0/modules/search/",
+    slash      => "http://purl.org/rss/1.0/modules/slash/",
+    ss         => "http://purl.org/rss/1.0/modules/servicestatus/",
+    str        => "http://hacks.benhammersley.com/rss/streaming/",
+    'sub'      => "http://purl.org/rss/1.0/modules/subscription/",
+    sy         => "http://purl.org/rss/1.0/modules/syndication/",
+    tapi       => "http://api.technorati.com/dtd/tapi-001.xml#",
+    taxo       => "http://purl.org/rss/1.0/modules/taxonomy/",
+    thr        => "http://purl.org/rss/1.0/modules/threading/",
+    trackback  => "http://madskills.com/public/xml/rss/module/trackback/",
+    wiki       => "http://purl.org/rss/1.0/modules/wiki/",
+    xhtml      => "http://www.w3.org/1999/xhtml",
+    xml        => "http://www.w3.org/XML/1998/namespace/",
 
-my $pass_thru = {
-	body=> [ 'http://www.w3.org/1999/xhtml' ],
-    div=> [ 'http://www.w3.org/1999/xhtml' ],
-	Person=> [ 'http://xmlns.com/foaf/0.1/' ], # I love RDF.
-	person=> [ 'http://xmlns.com/foaf/0.1/' ]
-};
+    creativeCommons => "http://backend.userland.com/creativeCommonsRssModule"
+);
+my %xpath_ns = reverse %xpath_prefix;
 
 sub new {
     my $class = shift;
-	# my %args = @_;
-    my $self = $class->SUPER::new(
-    			  Namespaces    => 1,
-				  NoExpand      => 1,
-				  ParseParamEnt => 0,
-				  Handlers      => {
-				  	Init	=> \&_hdlr_init, 
-					Start   => \&_hdlr_start,
-				  	Char    => \&_hdlr_char,
-				  	End 	=> \&_hdlr_end,
-					Final	=> \&_hdlr_final
-					} );
-    bless ($self,$class);
-    return $self;
+    my $self = bless {}, $class;
+    my $params = {
+                  Document   => 'XML::RSS::Parser::Feed',
+                  Element    => 'XML::RSS::Parser::Element',
+                  Characters => 'XML::RSS::Parser::Characters'
+    };
+    $self->{__parser} = XML::Elemental->parser($params);
+    $self;
 }
 
-sub parse { $_[0]->SUPER::parse($_[1]); }
-sub parsefile { $_[0]->SUPER::parsefile($_[1]); }
-sub parsestring { $_[0]->SUPER::parsestring($_[1]); }
-
-sub ns_qualify { 
-	my ($class,$name, $namespace) = @_;
-	if (defined($namespace)) { 
-		$namespace .= '/' unless $namespace=~/(\/|#)$/;
-		return $namespace . $name;
-	} else { return $name; }
+sub register_ns_prefix {
+    my ($this, $prefix, $ns) = @_;
+    $xpath_prefix{$prefix} = $ns;
+    $xpath_ns{$ns}         = $prefix;
 }
 
-# $self->encode($self->{channel}->{webMaster})
+sub parse        { _parse('parse',        @_); }
+sub parse_file   { _parse('parse_file',   @_); }
+sub parse_string { _parse('parse_string', @_); }
+sub parse_uri    { _parse('parse_uri',    @_); }
 
-###--- Internal methods.
-
-# Since there are multiple namespaces for RSS (bad) and
-# in some case none at all (worse!) we have to map like 
-# named elements so we can treat them as if they were in 
-# the same one. This internal method helps by determing
-# which is in use.
-sub _find_rss_namespace_uri {
-	my $self = shift;
-	foreach my $prefix ($self->current_ns_prefixes) {
-		my $ns = $self->expand_ns_prefix($prefix);
-		if ($prefix eq '#default') { 
-			return $ns;
-		} else {
-			foreach (keys %{ $rss_namespaces }) {
-				return $ns if ($_ eq $ns);
-			} 
-		}
-	}
-	return undef;
+sub _parse {
+    my $meth = shift;
+    my $e    = shift;
+    my $doc;
+    eval { $doc = $e->{__parser}->$meth(@_) };
+    return $e->error($@) if ($@);
+    $e->rss_normalize($doc);
 }
 
-###--- parser handlers
+#--- utils
 
-sub _hdlr_init { 
-	$_[0]->{__feed} = XML::RSS::Parser::Feed->new; 
-	push( @{ $_[0]->{__stack} }, $_[0]->{__feed} );	
+sub prefix { $xpath_ns{$_[1]} }
+sub namespace { $xpath_prefix{$_[1]} }
+
+sub ns_qualify {
+    my ($this, $name, $ns) = @_;
+    $ns ||= '';
+    "{$ns}$name";
 }
 
-sub _hdlr_start { 
-    my $xp = shift;
-    my $el = shift;
-	my @attribs = @_;
-
-	# find RSS namespace and store if any. skip the root tag since it can vary
-	# and doesn't really serve much of a purpose other then to make walking the
-	# tree more complicated.
-	if ($el eq 'rss' || $el eq 'RDF' || $el eq 'channel') {
-		$xp->{__feed}->rss_namespace_uri( _find_rss_namespace_uri($xp) )
-			if (  $xp->new_ns_prefixes );
-		return unless ($el eq 'channel');
-	}
-		
-	# pass-thru specific blocks of embedded macrkup (aka XHTML).
-	$xp->{__stack}->[-1]->append_value( $xp->recognized_string ) and return
-			if $xp->{__pass_thru};
-
-	# create new element and add ref to processing stack
-	my $parent = $xp->{__stack}->[-1]; # $xp->{__block} || $xp->{__channel} || $xp->{__feed};
-	my $extended_name = XML::RSS::Parser->ns_qualify($el,$xp->namespace($el));
-	my $element = $parent->child($extended_name);
-	push( @{ $xp->{__stack} }, $element);
-
-	# namespace qualify any attributes and store in new element.
-	if (@attribs) { # CLEAN UP.
-		for (my $x=0; $#attribs>=$x; $x+=2) { 
-			my $ns = $xp->namespace($attribs[$x]) || $xp->namespace($el);
-			my $nsq = XML::RSS::Parser->ns_qualify( $attribs[$x], $ns );
-			$element->attribute($nsq,$attribs[$x+1]);
-		}
-	}
-
-	if ( $pass_thru->{$el} && 
-		# more inclusive matching trailing slash/no trailing slash?
-		grep { $_ eq $xp->namespace($el) } @{ $pass_thru->{$el} } ) { 
-			$xp->{__pass_thru}=1;
-			$element->value( $xp->recognized_string );
-	}
-	
+# Since different RSS formats have slightly different tag hierarchies
+# we make some alternations after processing so bring them all into
+# line.
+sub rss_normalize {
+    my $self         = shift;
+    my $doc          = shift;
+    my $ns           = $doc->find_rss_namespace;
+    my $channel_name = "{$ns}channel";
+    my $root         = $doc->contents->[0];
+    my @new_contents;
+    my $channel;
+    foreach (@{$root->contents}) {
+        if ($_->can('name') && ($_->name eq $channel_name)) {
+            $_->parent($doc);
+            $channel = $_;
+            $doc->contents([$_]);
+        } else {
+            push(@new_contents, $_);
+        }
+    }
+    map { $_->parent($channel) } @new_contents;
+    $channel->contents([@{$channel->contents}, @new_contents]);
+    $root->parent(undef);
+    $root->contents(undef);
+    $doc;
 }
-
-sub _hdlr_char {
-	$_[0]->{__stack}->[-1]->append_value($_[1])
-		if ( $_[0]->{__stack}->[-1] );
-}
-
-sub _hdlr_end {
-	my $xp = shift;
-	my $el = shift;
-	my $last = 0;
-	
-	$xp->{__stack}->[-1]->append_value( $xp->recognized_string )
-		if ( $xp->{__pass_thru} );
-
-	# take element off stack.
-	my $nsq = XML::RSS::Parser->ns_qualify($el,$xp->namespace($el));
-	if ( $xp->{__stack}->[-1] && $xp->{__stack}->[-1]->name eq $nsq ) { 
-				pop( @{ $xp->{__stack} } )
-					unless ( $el eq 'channel' && 
-						( ! $xp->{__feed}->rss_namespace_uri ||
-						 	$xp->namespace($el) eq $xp->{__feed}->rss_namespace_uri ) );
-				# to "normalize" the tree between formats we don't take the channel off
-				# the stack once on. In RSS 0.9 and 1.0 item is not a child of channel.
-				$xp->{__pass_thru} = 0;
-	}
-
-}
-
-sub _hdlr_final { $_[0]->{__feed}; }
 
 1;
 
@@ -170,147 +128,251 @@ __END__
 
 =head1 NAME
 
-XML::RSS::Parser - A liberal object-oriented parser for RSS feeds.
+XML::RSS::Parser - A liberal object-oriented parser for RSS
+feeds.
 
 =head1 SYNOPSIS
 
  #!/usr/bin/perl -w
- 
  use strict;
+ 
  use XML::RSS::Parser;
+ use FileHandle;
  
- my $p = new XML::RSS::Parser;
- my $feed = $p->parsefile('/path/to/some/rss/file');
- 	
- # output some values
- my $title = XML::RSS::Parser->ns_qualify('title',$feed->rss_namespace_uri);
- print $feed->channel->children($title)->value."\n";
- print "item count: ".$feed->item_count()."\n\n";
- foreach my $i ( $feed->items ) {
- 	map { print $_->name.": ".$_->value."\n" } $i->children;
- 	print "\n";
- } 
+ my $p = XML::RSS::Parser->new;
+ my $fh = FileHandle->new('/path/to/some/rss/file');
+ my $feed = $p->parse_file($fh);
  
+ # output some values 
+ my $feed_title = $feed->query('/channel/title');
+ print $feed_title->text_content;
+ my $count = $feed->item_count;
+ print " ($count)\n";
+ foreach my $i ( $feed->query('//item') ) { 
+     my $node = $i->query('title');
+     print '  '.$node->text_content;
+     print "\n"; 
+ }
+
 =head1 DESCRIPTION
 
-XML::RSS::Parser is a lightweight liberal parser of RSS feeds that
-is derived from the XML::Parser::LP module the I developed for
-mt-rssfeed -- a Movable Type plugin. This parser is "liberal" in
-that it does not demand compliance of a specific RSS version and
-will attempt to gracefully handle tags it does not expect or
-understand.  The parser's only requirements is that the file is
-well-formed XML and remotely resembles RSS.
+XML::RSS::Parser is a lightweight liberal parser of RSS
+feeds. This parser is "liberal" in that it does not demand
+compliance of a specific RSS version and will attempt to
+gracefully handle tags it does not expect or understand. 
+The parser's only requirements is that the file is
+well-formed XML and remotely resembles RSS. Roughly
+speaking, well formed XML with a C<channel> element as a
+direct sibling or the root tag and C<item> elements etc.
 
-There are a number of advantages to using this module then just
-using a standard parser-tree combination. There are a number of
-different RSS formats in use today. In very subtle ways these
-formats are not entirely compatible from one to another.
-XML::RSS::Parser makes a few assumptions to "normalize" the parse
-tree into a more consistent form. For instance, it forces
-C<channel> and C<item> into a parent-child relationship and locates
-one (if any) of the known RSS Namespace URIs and maps them into a
-common form. For more detail see L<SPECIAL PROCESSING NOTES>.
+There are a number of advantages to using this module then
+just using a standard parser-tree combination. There are a
+number of different RSS formats in use today. In very subtle
+ways these formats are not entirely compatible from one to
+another. XML::RSS::Parser makes a couple assumptions to
+"normalize" the parse tree into a more consistent form. For
+instance, it forces C<channel> and C<item> into a
+parent-child relationship. For more detail see L<SPECIAL
+PROCESSING NOTES>.
 
-This module is leaner then L<XML::RSS> -- the majority of code was
-for generating RSS files. It also provides a XPath-esque interface
-to the feed's tree.
+This module is leaner then L<XML::RSS> -- the majority of
+code was for generating RSS files. It also provides a
+XPath-esque interface to the feed's tree.
 
-While XML::RSS::Parser creates a normalized parse tree, it still
-leaves the mapping of overlapping and alternate tags common in the
-RSS format space to the developer. For this look at the L<XML::RAI>
-(RSS Abstraction Interface) package which provides an
-object-oriented layer to XML::RSS::Parser trees that transparently
-maps these various tags to one common interface.
+While XML::RSS::Parser creates a normalized parse tree, it
+still leaves the mapping of overlapping and alternate tags
+common in the RSS format space to the developer. For this
+look at the L<XML::RAI> (RSS Abstraction Interface) package
+which provides an object-oriented layer to XML::RSS::Parser
+trees that transparently maps these various tags to one
+common interface.
 
-Your feedback and suggestions are greatly appreciated. See the L<TO
-DO> section for some brief thoughts on next steps.
+XML::RSS::Parser is based on L<XML::Elemental>, a a
+SAX-based package for easily parsing XML documents into a
+more native and mostly object-oriented perl form.
 
 =head2 SPECIAL PROCESSING NOTES
 
-There are a number of different RSS formats in use today. In very
-subtle ways these formats are not entirely compatible from one to
-another. What's worse is that there are unlabeled versions within
-the standard in addition to tags with overlapping purposes and
-vague definitions. (See Mark Pilgrim's "The myth of RSS
-compatibility"
-L<http://diveintomark.org/archives/2004/02/04/incompatible-rss> for
-just a sampling of what I mean.) To ease working with RSS data in
-different formats, the parser does not create the feed's parse tree
-verbatim. Instead it makes a few assumptions to "normalize" the
-parse tree into a more consistent form.
+There are a number of different RSS formats in use today. In
+very subtle ways these formats are not entirely compatible
+from one to another. What's worse is that there are
+unlabeled versions within the standard in addition to tags
+with overlapping purposes and vague definitions. (See Mark
+Pilgrim's "The myth of RSS compatibility"
+L<http://diveintomark.org/archives/2004/02/04/incompatible-
+rss> for just a sampling of what I mean.) To ease working
+with RSS data in different formats, the parser does not
+create the feed's parse tree verbatim. Instead it makes a
+few assumptions to "normalize" the parse tree into a more
+consistent form.
 
-=over 4
+With the refactoring of this module and the switch to a true
+tree structure, the normalization process has been
+simplified. Some of the version 2x proved to be problematic
+with more advanced and complex feeds.
 
-=item * The parser will not include the root tags of C<rss> or
-C<RDF> in the tree. Namespace declaration information is still
-extracted.
+=over
+
+=item * The RSS namespace (if any) is extracted from the
+first sibling of the root tag. We don't use the root tag
+because in RSS 1.0 the root tag is in the RDF namespace and
+not RSS. That namespace is treated as the '#default' (no
+prefix) namespace for the parse tree.
+
+=item * The parser will not include the root tags of C<rss>
+or C<RDF> in the tree. Namespace declaration information is
+still extracted.
 
 =item * The parser forces C<channel> and C<item> into a
-parent-child relationship. In versions 0.9 and 1.0, C<channel> and
-C<item> tags are siblings.
-
-=item * Rather then creating character nodes for each tag element,
-the parser stores the tags contents as the nodes C<value> in most
-cases. These instances include direct descendants of C<item> and
-C<image> in addition to direct descedents of C<channel> not
-mentioned.
-
-=item * Some more advanced feeds in existence take advantage of
-namespace extensions that are permitted by RSS 1.0 and 2.0 (note:
-the versions are not related) and embed complex blocks markup from
-other grammars. The parser can pass through these blocks as a
-single node and stores the unparsed markup in the tree for ease of
-handling and later parsing. Two common instances in feeds that are
-currently supported are XHTML bodies and FOAF persons.
-
-=over 4
-
-=item An XHTML body can be retrieved by the element name of
-http://www.w3.org/1999/xhtml/body.
-
-=item A FOAF person can be retrieved by the element name of
-http://xmlns.com/foaf/0.1/person. Some feeds that were found use
-Person (capital P) -- the parser will pass-thru those blocks but
-you have to retrieve the node with the slightly different name.
+parent-child relationship. In versions 0.9 and 1.0,
+C<channel> and C<item> tags are siblings.
 
 =back
 
+=head2
+
+Two significant changes were made with the release of
+version 4.0.
+
+=over
+
+=item XML::RSS::Parser is B<not> a subclass of
+L<XML::Elemental>.
+
+This change should be transparent in most cases, but deemed
+necessary for the error handling and special handling of RSS
+data.
+
+=item XML::RSS::Parser uses Clarkian Notation for element
+and attribute names.
+
+This change is inherited from recent changes in
+XML::Elemental. The previous system was flawed and not
+widely adopted. Clarkian notation is the form used by
+XML::SAX and XML::Simple to name a few. Use the
+C<process_name> in L<XML::Elemental::Util> to parse element
+and attribute names intoo their namespace URI and local name
+parts.
+
+=back
+
+=head1 NAMESPACE PREFIXES
+
+The following prefix and namespace combinations are
+recognized by default. Use C<register_ns_prefix> to add
+more as needed.
+
+    admin       http://webns.net/mvcb/
+    ag          http://purl.org/rss/1.0/modules/aggregation/
+    annotate    http://purl.org/rss/1.0/modules/annotate/
+    atom        http://www.w3.org/2005/Atom
+    audio       http://media.tangent.org/rss/1.0/
+    cc          http://web.resource.org/cc/
+    company     http://purl.org/rss/1.0/modules/company
+    content     http://purl.org/rss/1.0/modules/content/
+    cp          http://my.theinfo.org/changed/1.0/rss/
+    dc          http://purl.org/dc/elements/1.1/
+    dcterms     http://purl.org/dc/terms/
+    email       http://purl.org/rss/1.0/modules/email/
+    ev          http://purl.org/rss/1.0/modules/event/
+    feedburner  http://rssnamespace.org/feedburner/ext/1.0
+    foaf        http://xmlns.com/foaf/0.1/
+    image       http://purl.org/rss/1.0/modules/image/
+    itunes      http://www.itunes.com/DTDs/Podcast-1.0.dtd
+    l           http://purl.org/rss/1.0/modules/link/
+    openSearch  http://a9.com/-/spec/opensearchrss/1.0/
+    rdf         http://www.w3.org/1999/02/22-rdf-syntax-ns#
+    rdfs        http://www.w3.org/2000/01/rdf-schema#
+    ref         http://purl.org/rss/1.0/modules/reference/
+    reqv        http://purl.org/rss/1.0/modules/richequiv/
+    rss091      http://purl.org/rss/1.0/modules/rss091#
+    search      http://purl.org/rss/1.0/modules/search/
+    slash       http://purl.org/rss/1.0/modules/slash/
+    ss          http://purl.org/rss/1.0/modules/servicestatus/
+    str         http://hacks.benhammersley.com/rss/streaming/
+    sub         http://purl.org/rss/1.0/modules/subscription/
+    sy          http://purl.org/rss/1.0/modules/syndication/
+    tapi        http://api.technorati.com/dtd/tapi-001.xml#
+    taxo        http://purl.org/rss/1.0/modules/taxonomy/
+    thr         http://purl.org/rss/1.0/modules/threading/
+    trackback   http://madskills.com/public/xml/rss/module/trackback/
+    wiki        http://purl.org/rss/1.0/modules/wiki/
+    xhtml       http://www.w3.org/1999/xhtml
+    xml         http://www.w3.org/XML/1998/namespace/
+
+    creativeCommons  http://backend.userland.com/creativeCommonsRssModule
+
 =head1 METHODS
 
-The following objects and methods are provided in this package.
+The following objects and methods are provided in this
+package.
 
 =item XML::RSS::Parser->new
 
-Constructor. Returns a reference to a new XML::RSS::Parser object.
-
-=item $parser->parse(source)
-
-Inherited from L<XML::Parser>, the SOURCE parameter should either
-open an IO::Handle or a string containing the whole XML document. A
-die call is thrown if a parse error occurs otherwise it will return
-a L<XML::RSS::Parser::Feed> object.
-
-=item $parser->parsefile(file)
-
-Inherited from L<XML::Parser>, FILE is an open handle. The file is
-closed no matter how parse returns. A die call is thrown if a parse
-error occurs otherwise it will return a L<XML::RSS::Parser::Feed>
+Constructor. Returns a reference to a new XML::RSS::Parser
 object.
 
-=item XML::RSS::Parser->ns_qualify(element, namesapce_uri)
+=item $parser->parse 
+=item $parser->parse_file 
+=item $parser->parse_string
+=item $parser->parse_uri
 
-An simple utility method implemented as an abstract method that
-will return a fully namespace qualified string for the supplied
-element.
+These methods are mostly pass-thru to the underlying SAX parser
+provided by L<XML::Elemental>. (See L<XML::SAX::Base> for
+more.)
+
+XML::RSS::Parser wraps these calls in eval statements and rather then 
+dying returns undefined. Any parsing errors can be retreived by using the 
+C<errstr> method inherited from L<Class::ErrorHandler>.
+
+Once the markup has been parsed it is automatically passed
+through the C<rss_normalize> method before the parse tree is
+returned to the caller.
+
+=item XML::RSS::Parser->register_ns_prefix(prefix,curi)
+
+Registers the given path with namespace URI for XPath
+lookups. Both parameters are required.
+
+=item XML::RSS::Parser->ns_qualify(element, namespace_uri)
+
+An simple utility implemented as an abstract method that
+will return a fully namespace qualified string for the
+supplied element. Return values are now in Clarkian
+notation.
+
+=item XML::RSS::Parser->prefix(namespace_uri)
+
+Returns the prefix to the given namespace URI. Returns
+C<undef> if the prefix is not known.
+
+=item XML::RSS::Parser->namespace(prefix)
+
+Returns the namespace URI to the given prefix. Returns
+C<undef> if the namespace is not registered.
+
+=item error
+
+Sets an error message for later retreival and returns
+C<undef>. Inherited from Class::ErrorHandler.
+
+=item errstr
+
+Returns the last error message set by C<error>. Inherited
+from Class:ErrorHandler.
 
 =head1 DEPENDENCIES
 
-L<XML::Parser>
+L<XML::SAX>, L<XML::Elemental>, L<Class::ErrorHandler>,
+L<Class::XPath> 1.4*
+
+Versions up to 1.4 have a design flaw that would cause it to
+choke on feeds with the / character in an attribute value.
+For example the Yahoo! feeds.
 
 =head1 SEE ALSO
 
-L<XML::RSS::Parser::Element>, L<XML::RSS::Parser::Feed>,
-L<XML::Parser>, L<XML::RAI>
+L<XML::RAI>
 
 The Feed Validator L<http://www.feedvalidator.org/>
 
@@ -322,29 +384,15 @@ L<http://www.oreillynet.com/pub/a/webservices/2002/11/19/
 rssfeedquality.html>
 
 The myth of RSS compatibility
-L<http://diveintomark.org/archives/2004/02/04/incompatible-rss>
-
-=head1 TO DO
-
-=over 4
-
-=item * Add whitespace filtering switch.
-
-=item * Add methods for adding more namespaces/blocks to pass-thru
-or to pass to a handler routine.
+L<http://diveintomark.org/archives/2004/02/04/incompatible-
+rss>
 
 =back
-
-=head1 LICENSE
-
-The software is released under the Artistic License. The terms of
-the Artistic License are described at
-L<http://www.perl.com/language/misc/Artistic.html>.
 
 =head1 AUTHOR & COPYRIGHT
 
 Except where otherwise noted, XML::RSS::Parser is Copyright
-2003-2004, Timothy Appnel, cpan@timaoutloud.org. All rights
+2003-2005, Timothy Appnel, cpan@timaoutloud.org. All rights
 reserved.
 
 =cut
